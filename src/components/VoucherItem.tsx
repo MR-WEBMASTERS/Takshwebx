@@ -7,11 +7,18 @@ interface TransactionItemProps {
 }
 
 const categoryTextColors: { [key: string]: string } = {
-  'Cash': 'text-blue-400',
-  'Staff Welfare': 'text-purple-400',
-  'Office Expenses': 'text-yellow-400',
+  'Staff Welfare': 'text-yellow-400',
+  'Stationary Expenses': 'text-sky-400',
+  'Pooja Expenses': 'text-pink-400',
+  'Electricity Charges': 'text-teal-400',
   'Deposit': 'text-green-400',
-}
+};
+
+const modeStyles: { [key: string]: string } = {
+  'Cash': 'bg-blue-900/50 text-blue-300 border-blue-700',
+  'NEFT': 'bg-purple-900/50 text-purple-300 border-purple-700',
+  'IMPS': 'bg-yellow-900/50 text-yellow-300 border-yellow-700',
+};
 
 const TransactionItem: React.FC<TransactionItemProps> = ({ transaction }) => {
   const formattedAmount = new Intl.NumberFormat('en-IN', {
@@ -40,9 +47,16 @@ const TransactionItem: React.FC<TransactionItemProps> = ({ transaction }) => {
       <div className="flex justify-between items-start gap-4">
         <div className="flex-grow">
           <p className="text-sm text-slate-400">{new Date(transaction.date).toLocaleDateString()}</p>
-          <h3 className={`text-lg font-bold mt-1 ${categoryTextColors[transaction.category] || 'text-slate-100'}`}>
-            {transaction.category}
-          </h3>
+          <div className="flex items-center gap-3 mt-1">
+             <h3 className={`text-lg font-bold ${categoryTextColors[transaction.category] || 'text-slate-100'}`}>
+              {transaction.category}
+            </h3>
+            {isDebit && transaction.mode && (
+              <span className={`px-2 py-0.5 text-xs font-semibold rounded-full border ${modeStyles[transaction.mode]}`}>
+                {transaction.mode}
+              </span>
+            )}
+          </div>
           <p className="text-sm text-slate-300 mt-1">{transaction.description}</p>
         </div>
         
