@@ -1,17 +1,24 @@
 import React, { useState } from 'react';
-import type { Transaction, TransactionCategory } from '../types';
+import type { Transaction, TransactionCategory, TransactionMode } from '../types';
 
 interface ExpenseFormProps {
-  onAddExpense: (expense: Omit<Transaction, 'id' | 'date' | 'type' | 'category'> & { category: TransactionCategory }) => void;
+  onAddExpense: (expense: { 
+    description: string;
+    amount: number;
+    category: TransactionCategory;
+    mode: TransactionMode;
+  }) => void;
   currentBalance: number;
 }
 
-const CATEGORIES: TransactionCategory[] = ['Cash', 'Staff Welfare', 'Office Expenses'];
+const CATEGORIES: TransactionCategory[] = ['Staff Welfare', 'Stationary Expenses', 'Pooja Expenses', 'Electricity Charges'];
+const MODES: TransactionMode[] = ['Cash', 'NEFT', 'IMPS'];
 
 const ExpenseForm: React.FC<ExpenseFormProps> = ({ onAddExpense, currentBalance }) => {
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState<number | ''>('');
   const [category, setCategory] = useState<TransactionCategory>(CATEGORIES[0]);
+  const [mode, setMode] = useState<TransactionMode>(MODES[0]);
   const [error, setError] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -24,7 +31,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ onAddExpense, currentBalance 
         setError('Amount must be positive.');
         return;
     }
-    if (category === 'Cash' && Number(amount) > currentBalance) {
+    if (mode === 'Cash' && Number(amount) > currentBalance) {
         setError('Insufficient cash on hand. This expense exceeds the current balance.');
         return;
     }
@@ -34,6 +41,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ onAddExpense, currentBalance 
       description,
       amount: Number(amount),
       category,
+      mode,
     });
   };
 
@@ -55,6 +63,18 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ onAddExpense, currentBalance 
         />
       </div>
 
+      <div>
+          <label htmlFor="category" className="block text-sm font-medium text-slate-300 mb-2">Category</label>
+          <select
+            id="category"
+            value={category}
+            onChange={(e) => setCategory(e.target.value as TransactionCategory)}
+            className="w-full bg-slate-700 border border-slate-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
+          >
+            {CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+          </select>
+      </div>
+
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label htmlFor="amount" className="block text-sm font-medium text-slate-300 mb-2">Amount (₹)</label>
@@ -70,14 +90,14 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ onAddExpense, currentBalance 
           />
         </div>
         <div>
-          <label htmlFor="category" className="block text-sm font-medium text-slate-300 mb-2">Category</label>
+          <label htmlFor="mode" className="block text-sm font-medium text-slate-300 mb-2">Mode</label>
           <select
-            id="category"
-            value={category}
-            onChange={(e) => setCategory(e.target.value as TransactionCategory)}
+            id="mode"
+            value={mode}
+            onChange={(e) => setMode(e.target.value as TransactionMode)}
             className="w-full bg-slate-700 border border-slate-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
           >
-            {CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+            {MODES.map(m => <option key={m} value={m}>{m}</option>)}
           </select>
         </div>
       </div>
