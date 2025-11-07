@@ -1,12 +1,14 @@
 import React from 'react';
-import { motion } from 'framer-motion';
+// Fix: Import Variants type from framer-motion to correctly type the animation variants.
+import { motion, Variants } from 'framer-motion';
 
 interface TickAnimationProps {
     message?: string;
 }
 
 const TickAnimation: React.FC<TickAnimationProps> = ({ message = "Success!"}) => {
-  const circleVariants = {
+  // Fix: Explicitly type circleVariants with the Variants type to resolve the type error with the 'ease' property.
+  const circleVariants: Variants = {
     hidden: { pathLength: 0, opacity: 0 },
     visible: {
       pathLength: 1,
@@ -18,7 +20,8 @@ const TickAnimation: React.FC<TickAnimationProps> = ({ message = "Success!"}) =>
     },
   };
 
-  const tickVariants = {
+  // Fix: Explicitly type tickVariants with the Variants type to resolve the type error with the 'ease' property.
+  const tickVariants: Variants = {
     hidden: { pathLength: 0, opacity: 0 },
     visible: {
       pathLength: 1,
@@ -72,3 +75,4 @@ const TickAnimation: React.FC<TickAnimationProps> = ({ message = "Success!"}) =>
 };
 
 export default TickAnimation;
+
