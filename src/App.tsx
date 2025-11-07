@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import type { Transaction, TransactionCategory } from './types';
+import type { Transaction, TransactionCategory, TransactionMode } from './types';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import Header from './components/Header';
 import TransactionList from './components/VoucherList';
@@ -66,12 +66,13 @@ const App: React.FC = () => {
 
   // Filter states
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterCategory, setFilterCategory] = useState<'All' | TransactionCategory | 'Deposit'>('All');
+  const [filterMode, setFilterMode] = useState<'All' | TransactionMode | 'Deposit'>('All');
   const [filterType, setFilterType] = useState<'All' | 'debit' | 'credit'>('All');
+  const [filterDate, setFilterDate] = useState<string>('');
 
 
-  const handleAddExpense = (newExpenseData: { description: string, amount: number, category: TransactionCategory }) => {
-    if (newExpenseData.category === 'Cash' && newExpenseData.amount > balance) {
+  const handleAddExpense = (newExpenseData: { description: string, amount: number, category: TransactionCategory, mode: TransactionMode }) => {
+    if (newExpenseData.mode === 'Cash' && newExpenseData.amount > balance) {
         console.error("Attempted to add cash expense exceeding balance. This should have been caught by the form.");
         return;
     }
@@ -83,7 +84,7 @@ const App: React.FC = () => {
     };
     setTransactions(prev => [newTransaction, ...prev]);
     
-    if (newTransaction.category === 'Cash') {
+    if (newTransaction.mode === 'Cash') {
       setBalance(prev => prev - newTransaction.amount);
     }
 
@@ -97,6 +98,7 @@ const App: React.FC = () => {
       description: 'Funds Deposit',
       amount,
       category: 'Deposit',
+      mode: 'Deposit',
       date: new Date().toISOString(),
       type: 'credit',
     };
@@ -107,7 +109,7 @@ const App: React.FC = () => {
   }
 
   const handleExportCSV = () => {
-    const headers = ['S.No', 'Date', 'Timestamp', 'Description', 'Type', 'Amount', 'Mode'];
+    const headers = ['S.No', 'Date', 'Timestamp', 'Description', 'Category', 'Type', 'Amount', 'Mode'];
     // Sort transactions chronologically to ensure S.No is sequential
     const sortedTransactions = [...transactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
@@ -118,9 +120,10 @@ const App: React.FC = () => {
             new Date(t.date).toLocaleDateString(),
             new Date(t.date).toLocaleTimeString(),
             `"${t.description.replace(/"/g, '""')}"`, // Description
-            t.type,                                      // Type (debit/credit)
+            t.category,                                  // Category
+            t.type,                                      // Type
             t.amount,                                    // Amount
-            t.category                                   // Mode
+            t.mode                                       // Mode
         ].join(','))
     ];
 
@@ -145,8 +148,9 @@ const App: React.FC = () => {
 
   const handleClearFilters = () => {
     setSearchTerm('');
-    setFilterCategory('All');
+    setFilterMode('All');
     setFilterType('All');
+    setFilterDate('');
   };
   
   useEffect(() => {
@@ -176,9 +180,10 @@ const App: React.FC = () => {
   
   const filteredTransactions = transactions.filter(t => {
       const searchTermMatch = t.description.toLowerCase().includes(searchTerm.toLowerCase());
-      const categoryMatch = filterCategory === 'All' || t.category === filterCategory;
+      const modeMatch = filterMode === 'All' || t.mode === filterMode;
       const typeMatch = filterType === 'All' || t.type === filterType;
-      return searchTermMatch && categoryMatch && typeMatch;
+      const dateMatch = filterDate === '' || t.date.split('T')[0] === filterDate;
+      return searchTermMatch && modeMatch && typeMatch && dateMatch;
   });
 
   return (
@@ -192,10 +197,12 @@ const App: React.FC = () => {
         <FilterControls 
             searchTerm={searchTerm}
             onSearchChange={setSearchTerm}
-            filterCategory={filterCategory}
-            onCategoryChange={setFilterCategory}
+            filterMode={filterMode}
+            onModeChange={setFilterMode}
             filterType={filterType}
             onTypeChange={setFilterType}
+            filterDate={filterDate}
+            onDateChange={setFilterDate}
             onClearFilters={handleClearFilters}
         />
         <TransactionList 
