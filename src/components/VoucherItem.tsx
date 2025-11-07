@@ -70,4 +70,4 @@ const TransactionItem: React.FC<TransactionItemProps> = ({ transaction }) => {
   );
 };
 
-export default TransactionItem;
+export default Voucherlist;
