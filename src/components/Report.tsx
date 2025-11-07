@@ -9,9 +9,9 @@ interface ReportProps {
 }
 
 const StatCard: React.FC<{ label: string; value: string; color: string }> = ({ label, value, color }) => (
-  <div className="bg-slate-700 p-4 rounded-lg text-center">
+  <div className="bg-slate-700 p-2 rounded-lg text-center">
     <p className="text-sm text-slate-400">{label}</p>
-    <p className={`text-2xl font-bold ${color}`}>{value}</p>
+    <p className={`text-lg font-bold ${color}`}>{value}</p>
   </div>
 );
 
@@ -27,10 +27,10 @@ const Report: React.FC<ReportProps> = ({ transactions, balance, onExport }) => {
   const formatCurrency = (value: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(value);
 
   return (
-    <div className="p-8 text-white">
+    <div className="p-6 text-white">
       <h2 className="text-2xl font-bold mb-6 text-center">Transaction Report</h2>
       
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-6">
         <StatCard label="Total Funds Added" value={formatCurrency(totalCredit)} color="text-green-400" />
         <StatCard label="Total Expenses" value={formatCurrency(totalDebit)} color="text-red-400" />
         <StatCard label="Final Balance" value={formatCurrency(balance)} color="text-white" />
