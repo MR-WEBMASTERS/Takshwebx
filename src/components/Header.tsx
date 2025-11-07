@@ -16,7 +16,7 @@ const Header: React.FC<HeaderProps> = ({ balance, onAddFunds, onViewReport }) =>
   return (
     <header className="py-8 text-center">
       <h1 className="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400">
-        Office Cash Master
+         Taksh Pay
       </h1>
       <div className="mt-6">
         <p className="text-slate-400 text-lg">Current Balance</p>
