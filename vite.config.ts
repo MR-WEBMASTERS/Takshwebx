@@ -22,7 +22,6 @@ export default defineConfig(({ mode }) => {
 
     resolve: {
       alias: {
-        // point to src so imports like "@/components/..." work
         "@": path.resolve(__dirname, "src"),
       },
     },
