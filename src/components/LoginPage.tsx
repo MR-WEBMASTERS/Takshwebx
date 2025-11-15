@@ -1,105 +1,107 @@
+import React, { useState } from "react";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
+import { auth, db } from "../firebase"; // adjust path if needed
 
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import { db } from '../firebase';
+type Props = {
+  onSuccessRedirectUser?: string; // default user dashboard
+  onSuccessRedirectAdmin?: string; // admin dashboard
+};
 
-interface LoginPageProps {
-    onSwitchToSignup: () => void;
-}
+const toEmail = (username: string) => `${username.toLowerCase()}@taksh.local`;
 
-const LoginPage: React.FC<LoginPageProps> = ({ onSwitchToSignup }) => {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+const LoginPage: React.FC<Props> = ({
+  onSuccessRedirectUser = "/dashboard",
+  onSuccessRedirectAdmin = "/admin",
+}) => {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    if (!username || !password) {
-      setError('Username and password are required.');
+    setError(null);
+
+    const trimmed = username.trim().toLowerCase();
+    if (!trimmed) {
+      setError("Enter your username");
       return;
     }
-    setIsLoading(true);
-    try {
-        const usersRef = db.collection('users');
-        const snapshot = await usersRef.where('username', '==', username).limit(1).get();
-
-        if (snapshot.empty) {
-            setError('Invalid username or password.');
-            setIsLoading(false);
-            return;
-        }
-
-        const email = `${username}@officemaster.app`;
-        await auth.signInWithEmailAndPassword(email, password);
-        // Auth state listener in App.tsx will handle the view change.
-    } catch (err: any) {
-        let friendlyMessage = 'Invalid credentials. Please try again.';
-        if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
-            friendlyMessage = 'Invalid username or password.';
-        }
-        setError(friendlyMessage);
+    if (!password) {
+      setError("Enter your password");
+      return;
     }
-    setIsLoading(false);
+
+    setLoading(true);
+    try {
+      const email = toEmail(trimmed);
+      await signInWithEmailAndPassword(auth, email, password);
+
+      // Look up user doc (doc id = username)
+      const userDocRef = doc(db, "users", trimmed);
+      const userSnap = await getDoc(userDocRef);
+
+      const role = userSnap.exists() ? (userSnap.data() as any).role : null;
+
+      if (role === "admin") {
+        window.location.href = onSuccessRedirectAdmin;
+      } else {
+        window.location.href = onSuccessRedirectUser;
+      }
+    } catch (err: any) {
+      console.error("Login error:", err);
+      if (err.code === "auth/wrong-password" || err.code === "auth/user-not-found") {
+        setError("Invalid username or password");
+      } else {
+        setError(err.message || "Failed to sign in. Please try again.");
+      }
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center p-4">
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="w-full max-w-sm"
-      >
-        <form onSubmit={handleSubmit} className="bg-slate-800 p-8 rounded-xl shadow-2xl border border-slate-700 space-y-6">
-          <h1 className="text-3xl font-bold text-center text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400">
-            Login
-          </h1>
-          
-          {error && <p className="text-red-400 bg-red-900/50 p-3 rounded-lg text-sm text-center">{error}</p>}
-          
-          <div>
-            <label htmlFor="username" className="block text-sm font-medium text-slate-300 mb-2">Username</label>
-            <input
-              id="username"
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="w-full bg-slate-700 border border-slate-600 rounded-lg p-3 text-white placeholder-slate-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
-              placeholder="Enter your username"
-              autoComplete="username"
-            />
-          </div>
-          <div>
-            <label htmlFor="password"className="block text-sm font-medium text-slate-300 mb-2">Password</label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-slate-700 border border-slate-600 rounded-lg p-3 text-white placeholder-slate-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
-              placeholder="Enter your password"
-              autoComplete="current-password"
-            />
-          </div>
-          
-          <button 
-            type="submit" 
-            disabled={isLoading}
-            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg transition-colors transform hover:scale-[1.02] active:scale-95 disabled:bg-slate-600 disabled:cursor-not-allowed"
-          >
-            {isLoading ? 'Logging In...' : 'Login'}
-          </button>
-          
-          <div className="text-center text-sm text-slate-400 space-y-2">
-            <p>
-                Don't have an account?{' '}
-                <button type="button" onClick={onSwitchToSignup} className="font-semibold text-indigo-400 hover:underline">Sign Up</button>
-            </p>
-          </div>
-        </form>
-      </motion.div>
+    <div className="max-w-md mx-auto mt-12 p-6 bg-slate-800 rounded-lg text-slate-100">
+      <h2 className="text-xl font-semibold mb-4">Log in</h2>
+
+      {error && <div className="mb-3 text-sm text-red-300">{error}</div>}
+
+      <form onSubmit={handleLogin} className="space-y-3">
+        <div>
+          <label className="block text-sm text-slate-300">Username</label>
+          <input
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            className="w-full mt-1 p-2 rounded bg-slate-700 border border-slate-600"
+            placeholder="your username"
+            autoComplete="username"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm text-slate-300">Password</label>
+          <input
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full mt-1 p-2 rounded bg-slate-700 border border-slate-600"
+            type="password"
+            placeholder="password"
+            autoComplete="current-password"
+          />
+        </div>
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full py-2 mt-2 rounded bg-sky-600 hover:bg-sky-500 disabled:opacity-60"
+        >
+          {loading ? "Signing in..." : "Sign in"}
+        </button>
+      </form>
+
+      <p className="mt-3 text-sm text-slate-400">
+        New here? <a href="/signup" className="text-emerald-300">Create an account</a>
+      </p>
     </div>
   );
 };
