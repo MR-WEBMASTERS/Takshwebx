@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { auth, db } from '../firebase';
+import { db } from '../firebase';
 
 interface LoginPageProps {
     onSwitchToSignup: () => void;
