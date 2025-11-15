@@ -1,15 +1,30 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Taksh FinSync</title>
-  <!-- use Vite-managed CSS -->
-  <link rel="stylesheet" href="/index.css" />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Office Cash Master</title>
+
+    <!-- Tailwind (CDN OK for now) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Import maps for React & Firebase -->
+    <script type="importmap">
+    {
+      "imports": {
+        "react": "https://aistudiocdn.com/react@19.2.0",
+        "react-dom": "https://aistudiocdn.com/react-dom@19.2.0",
+        "framer-motion": "https://aistudiocdn.com/framer-motion@12.23.24",
+        "firebase": "https://aistudiocdn.com/firebase@12.6.0"
+      }
+    }
+    </script>
 </head>
+
 <body class="bg-slate-900">
-  <div id="root"></div>
-  <!-- Vite entry: ensure this file exists (see next steps) -->
-  <script type="module" src="/src/main.tsx"></script>
+    <div id="root"></div>
+
+    <!-- VERY IMPORTANT for GitHub Pages!! -->
+    <script type="module" src="./src/main.tsx"></script>
 </body>
 </html>
