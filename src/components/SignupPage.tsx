@@ -1,137 +1,132 @@
+mport React, { useState } from "react";
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
+import { auth, db } from "../firebase"; // adjust path if needed
 
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import { auth, db } from '../firebase';
-import type { User } from '../types';
+type Props = {
+  onSuccessRedirect?: string; // e.g. "/dashboard"
+};
 
-interface SignupPageProps {
-  onSignupSuccess: () => void;
-  onSwitchToLogin: () => void;
-}
+const toEmail = (username: string) => `${username.toLowerCase()}@taksh.local`;
 
-const SignupPage: React.FC<SignupPageProps> = ({ onSignupSuccess, onSwitchToLogin }) => {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+const SignupPage: React.FC<Props> = ({ onSuccessRedirect = "/dashboard" }) => {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    if (!username || !password || !confirmPassword) {
-      setError('All fields are required.');
-      return;
-    }
-    if (password !== confirmPassword) {
-      setError('Passwords do not match.');
+    setError(null);
+
+    const trimmedUsername = username.trim().toLowerCase();
+    if (!trimmedUsername) {
+      setError("Username is required");
       return;
     }
     if (password.length < 6) {
-        setError('Password must be at least 6 characters long.');
-        return;
+      setError("Password must be at least 6 characters");
+      return;
+    }
+    if (password !== confirm) {
+      setError("Passwords do not match");
+      return;
     }
 
-    setIsLoading(true);
+    setLoading(true);
     try {
-        const usersRef = db.collection('users');
-        const snapshot = await usersRef.where('username', '==', username).get();
-        if (!snapshot.empty) {
-            setError('This username is already taken. Please choose another one.');
-            setIsLoading(false);
-            return;
-        }
-        
-        const email = `${username}@officemaster.app`;
+      // 1) username uniqueness check (doc id = username)
+      const userDocRef = doc(db, "users", trimmedUsername);
+      const existing = await getDoc(userDocRef);
+      if (existing.exists()) {
+        setError("Username already taken — choose another");
+        setLoading(false);
+        return;
+      }
 
-        const userCredential = await auth.createUserWithEmailAndPassword(email, password);
-        if (userCredential.user) {
-            const newUser: User = {
-                uid: userCredential.user.uid,
-                username: username,
-                balance: 0,
-            };
-            await db.collection('users').doc(userCredential.user.uid).set(newUser);
-            onSignupSuccess();
-        }
+      // 2) create hidden-email and create auth user
+      const email = toEmail(trimmedUsername);
+      const credential = await createUserWithEmailAndPassword(auth, email, password);
+      // note: we don't use credential.user.uid as doc id here; we use username doc id by design
+
+      // 3) write Firestore user doc (role 'user' only)
+      await setDoc(userDocRef, {
+        username: trimmedUsername,
+        role: "user",
+        createdAt: serverTimestamp(),
+      });
+
+      // 4) redirect / success
+      window.location.href = onSuccessRedirect;
     } catch (err: any) {
-        if (err.code === 'auth/invalid-email') {
-            setError('Username contains invalid characters.');
-        } else {
-            setError('Failed to create an account. Please try again.');
-        }
+      console.error("Signup error:", err);
+      // user-friendly messages for common Firebase auth errors
+      if (err.code === "auth/email-already-in-use") {
+        setError("This username is already in use (try another).");
+      } else if (err.code === "auth/invalid-password" || err.code === "auth/weak-password") {
+        setError("Password is weak. Use 6+ characters.");
+      } else {
+        setError(err.message || "Failed to create an account. Please try again.");
+      }
+      setLoading(false);
     }
-    setIsLoading(false);
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center p-4">
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="w-full max-w-sm"
-      >
-        <form onSubmit={handleSubmit} className="bg-slate-800 p-8 rounded-xl shadow-2xl border border-slate-700 space-y-6">
-          <h1 className="text-3xl font-bold text-center text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-cyan-400">
-            Create Account
-          </h1>
-          
-          {error && <p className="text-red-400 bg-red-900/50 p-3 rounded-lg text-sm text-center">{error}</p>}
-          
-          <div>
-            <label htmlFor="username" className="block text-sm font-medium text-slate-300 mb-2">Username</label>
-            <input
-              id="username"
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="w-full bg-slate-700 border border-slate-600 rounded-lg p-3 text-white placeholder-slate-400 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition"
-              placeholder="Choose a username"
-              autoComplete="username"
-            />
-          </div>
-          <div>
-            <label htmlFor="password"className="block text-sm font-medium text-slate-300 mb-2">Password</label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-slate-700 border border-slate-600 rounded-lg p-3 text-white placeholder-slate-400 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition"
-              placeholder="Create a password (min. 6 characters)"
-              autoComplete="new-password"
-            />
-          </div>
-           <div>
-            <label htmlFor="confirm-password"className="block text-sm font-medium text-slate-300 mb-2">Confirm Password</label>
-            <input
-              id="confirm-password"
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full bg-slate-700 border border-slate-600 rounded-lg p-3 text-white placeholder-slate-400 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition"
-              placeholder="Confirm your password"
-              autoComplete="new-password"
-            />
-          </div>
-          
-          <button 
-            type="submit" 
-            disabled={isLoading}
-            className="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 rounded-lg transition-colors transform hover:scale-[1.02] active:scale-95 disabled:bg-slate-600 disabled:cursor-not-allowed"
-          >
-            {isLoading ? 'Creating Account...' : 'Sign Up'}
-          </button>
-          
-          <div className="text-center text-sm text-slate-400">
-            <p>
-              Already have an account?{' '}
-              <button type="button" onClick={onSwitchToLogin} className="font-semibold text-teal-400 hover:underline">Login</button>
-            </p>
-          </div>
-        </form>
-      </motion.div>
+    <div className="max-w-md mx-auto mt-12 p-6 bg-slate-800 rounded-lg text-slate-100">
+      <h2 className="text-xl font-semibold mb-4">Sign up</h2>
+
+      {error && <div className="mb-3 text-sm text-red-300">{error}</div>}
+
+      <form onSubmit={handleSignup} className="space-y-3">
+        <div>
+          <label className="block text-sm text-slate-300">Username</label>
+          <input
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            className="w-full mt-1 p-2 rounded bg-slate-700 border border-slate-600"
+            placeholder="choose a username"
+            autoComplete="username"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm text-slate-300">Password</label>
+          <input
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full mt-1 p-2 rounded bg-slate-700 border border-slate-600"
+            type="password"
+            placeholder="password (min 6 chars)"
+            autoComplete="new-password"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm text-slate-300">Confirm password</label>
+          <input
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            className="w-full mt-1 p-2 rounded bg-slate-700 border border-slate-600"
+            type="password"
+            placeholder="confirm password"
+            autoComplete="new-password"
+          />
+        </div>
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full py-2 mt-2 rounded bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60"
+        >
+          {loading ? "Creating..." : "Create account"}
+        </button>
+      </form>
+
+      <p className="mt-3 text-sm text-slate-400">
+        Already have an account? <a href="/login" className="text-sky-300">Log in</a>
+      </p>
     </div>
   );
 };
