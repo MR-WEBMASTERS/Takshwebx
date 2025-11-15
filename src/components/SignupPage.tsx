@@ -1,4 +1,4 @@
-mport React, { useState } from "react";
+import React, { useState } from "react";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "../firebase"; // adjust path if needed
