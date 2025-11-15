@@ -2,12 +2,12 @@ import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  apiKey: "AIzaSyBSPFOBfkNxjt07Z6s_jBCtTJAhFml7ZW4",
+  authDomain: "taksh-finsync.firebaseapp.com",
+  projectId: "taksh-finsync",
+  storageBucket: "taksh-finsync.firebasestorage.app",
+  messagingSenderId: "13171864106",
+  appId: "1:13171864106:web:06f7a88a480128b9c58953"
 };
 
 const app = initializeApp(firebaseConfig);
