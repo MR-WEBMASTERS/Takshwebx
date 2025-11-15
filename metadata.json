@@ -1,0 +1,5 @@
+{
+  "name": "Office Cash Master",
+  "description": "A simple and elegant app to track office expenses. Manage a central cash balance, record expenses across categories, and view your transaction history with smooth, satisfying animations.",
+  "requestFramePermissions": []
+}
