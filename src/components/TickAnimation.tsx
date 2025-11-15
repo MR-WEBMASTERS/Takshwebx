@@ -75,4 +75,3 @@ const TickAnimation: React.FC<TickAnimationProps> = ({ message = "Success!"}) =>
 };
 
 export default TickAnimation;
-

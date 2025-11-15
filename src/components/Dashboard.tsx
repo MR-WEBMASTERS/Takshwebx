@@ -9,7 +9,7 @@ import ExpenseForm from './VoucherForm';
 import TickAnimation from './TickAnimation';
 import Report from './Report';
 import FilterControls from './FilterControls';
-import * as db from '../db';
+import { db } from '../firebase';
 
 type ModalContent = 'expense' | null;
 
@@ -20,7 +20,6 @@ interface DashboardProps {
 
 const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [balance, setBalance] = useState<number>(user.balance);
   const [isLoading, setIsLoading] = useState(true);
   const [modalContent, setModalContent] = useState<ModalContent>(null);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
@@ -34,50 +33,59 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   const [filterDate, setFilterDate] = useState<string>('');
   
   useEffect(() => {
-    async function loadUserData() {
-        try {
-            const dbTransactions = await db.getTransactions(user.userId);
-            setTransactions(dbTransactions);
-            // Balance is already passed in user prop, so no need to fetch separately
-            setBalance(user.balance);
-        } catch (error) {
-            console.error("Failed to load data for user:", error);
-            alert("Error: Could not load your data.");
-        } finally {
-            setIsLoading(false);
-        }
-    }
-    loadUserData();
-  }, [user.userId, user.balance]);
+    setIsLoading(true);
+    const unsubscribe = db.collection('transactions')
+      .where('userId', '==', user.uid)
+      .orderBy('date', 'desc')
+      .onSnapshot(snapshot => {
+        const dbTransactions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Transaction[];
+        setTransactions(dbTransactions);
+        setIsLoading(false);
+      }, error => {
+        console.error("Failed to load transactions:", error);
+        alert("Error: Could not load your transactions.");
+        setIsLoading(false);
+      });
+
+    return () => unsubscribe();
+  }, [user.uid]);
 
   const handleAddExpense = async (newExpenseData: { description: string, amount: number, category: TransactionCategory, mode: TransactionMode }) => {
-    if (newExpenseData.mode === 'Cash' && newExpenseData.amount > balance) {
-        return;
-    }
-    const newTransaction: Transaction = {
+    const newTransactionData: Omit<Transaction, 'id'> = {
       ...newExpenseData,
-      id: crypto.randomUUID(),
       date: new Date().toISOString(),
       type: 'debit',
-      userId: user.userId,
+      userId: user.uid,
     };
     
     try {
-      await db.addTransaction(newTransaction);
-      setTransactions(prev => [newTransaction, ...prev]);
-      
-      if (newTransaction.mode === 'Cash') {
-        const newBalance = balance - newTransaction.amount;
-        await db.updateUserBalance(user.userId, newBalance);
-        setBalance(newBalance);
+      const txCollection = db.collection('transactions');
+      const userDocRef = db.collection('users').doc(user.uid);
+
+      if (newTransactionData.mode === 'Cash') {
+          await db.runTransaction(async (transaction) => {
+              const userDoc = await transaction.get(userDocRef);
+              if (!userDoc.exists) throw new Error("User document does not exist!");
+              
+              const currentBalance = userDoc.data()!.balance;
+              if (newExpenseData.amount > currentBalance) {
+                  throw new Error('Insufficient cash on hand. This expense exceeds the current balance.');
+              }
+              
+              const newBalance = currentBalance - newExpenseData.amount;
+              transaction.update(userDocRef, { balance: newBalance });
+              transaction.set(txCollection.doc(), newTransactionData);
+          });
+      } else {
+          await txCollection.add(newTransactionData);
       }
 
       setSuccessMessage('Expense Added!');
       setShowSuccess(true);
 
-    } catch(err) {
+    } catch(err: any) {
       console.error("Failed to save expense to DB", err);
-      alert("Error: Could not save expense. Please try again.");
+      alert(err.message || "Error: Could not save expense. Please try again.");
     }
   };
 
@@ -142,7 +150,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
     }
     switch (modalContent) {
       case 'expense':
-        return <ExpenseForm onAddExpense={handleAddExpense} currentBalance={balance} />;
+        return <ExpenseForm onAddExpense={handleAddExpense} currentBalance={user.balance} />;
       default:
         return null;
     }
@@ -168,7 +176,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
     <div className="min-h-screen bg-slate-900 text-white font-sans">
       <main className="container mx-auto px-4 pb-32">
         <Header 
-          balance={balance}
+          balance={user.balance}
           username={user.username}
           onViewReport={() => setIsReportModalOpen(true)}
           onLogout={onLogout}
@@ -196,7 +204,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       <Modal isOpen={isReportModalOpen} onClose={() => setIsReportModalOpen(false)}>
         <Report 
           transactions={transactions}
-          balance={balance}
+          balance={user.balance}
           onExport={handleExportCSV}
         />
       </Modal>

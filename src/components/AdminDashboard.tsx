@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import type { Transaction, User } from '../types';
-import * as db from '../db';
+import { db } from '../firebase';
 import Modal from './Modal';
 import TickAnimation from './TickAnimation';
 
@@ -23,10 +23,12 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
     useEffect(() => {
         async function loadAdminData() {
             try {
-                const [allUsers, allTransactions] = await Promise.all([
-                    db.getAllUsers(),
-                    db.getAllTransactions(),
-                ]);
+                const usersSnapshot = await db.collection('users').get();
+                const allUsers = usersSnapshot.docs.map(doc => doc.data() as User).filter(user => user.username !== 'admin');
+                
+                const transactionsSnapshot = await db.collection('transactions').get();
+                const allTransactions = transactionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as Transaction);
+
                 setUsers(allUsers);
                 setTransactions(allTransactions);
             } catch (error) {
@@ -62,25 +64,35 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
             return;
         }
     
-        const newTransaction: Transaction = {
-            id: crypto.randomUUID(),
+        const newTransactionData: Omit<Transaction, 'id'> = {
             description: 'Funds added by Admin',
             amount: Number(amount),
             category: 'Deposit',
             mode: 'Deposit',
             date: new Date().toISOString(),
             type: 'credit',
-            userId: selectedUser.userId,
+            userId: selectedUser.uid,
         };
         
         try {
-            const newBalance = selectedUser.balance + Number(amount);
-            await db.addTransaction(newTransaction);
-            await db.updateUserBalance(selectedUser.userId, newBalance);
+            const userDocRef = db.collection('users').doc(selectedUser.uid);
+            const txCollectionRef = db.collection('transactions');
+
+            await db.runTransaction(async (t) => {
+                const userDoc = await t.get(userDocRef);
+                if (!userDoc.exists) throw new Error("User not found");
+                
+                const currentBalance = userDoc.data()!.balance;
+                const newBalance = currentBalance + Number(amount);
+                
+                t.update(userDocRef, { balance: newBalance });
+                t.set(txCollectionRef.doc(), newTransactionData);
+            });
     
-            setTransactions(prev => [newTransaction, ...prev]);
+            // Optimistically update local state for immediate UI feedback
+            setTransactions(prev => [{ ...newTransactionData, id: crypto.randomUUID() }, ...prev]);
             setUsers(prevUsers => prevUsers.map(u => 
-                u.userId === selectedUser.userId ? { ...u, balance: newBalance } : u
+                u.uid === selectedUser.uid ? { ...u, balance: u.balance + Number(amount) } : u
             ));
             
             setShowSuccess(true);
@@ -90,14 +102,14 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
                 handleCloseModal();
             }, 1500);
     
-        } catch(err) {
+        } catch(err: any) {
             console.error("Failed to add funds by admin", err);
-            setError("Error: Could not add funds. Please try again.");
+            setError(err.message || "Error: Could not add funds. Please try again.");
         }
     };
 
     const handleExportAllCSV = () => {
-        const userMap = new Map(users.map(u => [u.userId, u.username]));
+        const userMap = new Map(users.map(u => [u.uid, u.username]));
         const headers = ['Transaction ID', 'Date', 'Timestamp', 'Username', 'Description', 'Category', 'Type', 'Amount', 'Mode'];
         const sortedTransactions = [...transactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     
@@ -173,9 +185,9 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
                         </div>
                         <ul className="space-y-2">
                             {users.map(user => (
-                                <li key={user.userId} className="grid grid-cols-5 bg-slate-700/50 p-4 rounded-lg items-center">
-                                    <span className="col-span-2 font-semibold text-white">{user.username}</span>
-                                    <span className="text-right text-slate-300">{transactions.filter(t => t.userId === user.userId).length}</span>
+                                <li key={user.uid} className="grid grid-cols-5 bg-slate-700/50 p-4 rounded-lg items-center">
+                                    <span className="col-span-2 font-semibold text-white truncate">{user.username}</span>
+                                    <span className="text-right text-slate-300">{transactions.filter(t => t.userId === user.uid).length}</span>
                                     <span className="text-right font-mono text-lg">{formatCurrency(user.balance)}</span>
                                     <div className="text-right">
                                         <motion.button 
@@ -203,7 +215,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
                                     <li key={t.id} className="bg-slate-800 p-3 rounded-lg flex justify-between items-center gap-4">
                                         <div>
                                             <p className="text-sm text-slate-400">
-                                                {new Date(t.date).toLocaleString()} - <span className="font-semibold text-slate-300">{users.find(u=>u.userId === t.userId)?.username}</span>
+                                                {new Date(t.date).toLocaleString()} - <span className="font-semibold text-slate-300">{users.find(u=>u.uid === t.userId)?.username}</span>
                                             </p>
                                             <p className="text-white">{t.description}</p>
                                         </div>

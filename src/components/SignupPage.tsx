@@ -1,11 +1,11 @@
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import * as db from '../db';
-import { User } from '../types';
+import { auth, db } from '../firebase';
+import type { User } from '../types';
 
 interface SignupPageProps {
-  onSignupSuccess: (user: User) => void;
+  onSignupSuccess: () => void;
   onSwitchToLogin: () => void;
 }
 
@@ -33,14 +33,35 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSignupSuccess, onSwitchToLogi
     }
 
     setIsLoading(true);
-    const newUser = await db.createUser(username, password);
-    setIsLoading(false);
+    try {
+        const usersRef = db.collection('users');
+        const snapshot = await usersRef.where('username', '==', username).get();
+        if (!snapshot.empty) {
+            setError('This username is already taken. Please choose another one.');
+            setIsLoading(false);
+            return;
+        }
+        
+        const email = `${username}@officemaster.app`;
 
-    if (newUser) {
-      onSignupSuccess(newUser);
-    } else {
-      setError('Username already exists. Please choose another.');
+        const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+        if (userCredential.user) {
+            const newUser: User = {
+                uid: userCredential.user.uid,
+                username: username,
+                balance: 0,
+            };
+            await db.collection('users').doc(userCredential.user.uid).set(newUser);
+            onSignupSuccess();
+        }
+    } catch (err: any) {
+        if (err.code === 'auth/invalid-email') {
+            setError('Username contains invalid characters.');
+        } else {
+            setError('Failed to create an account. Please try again.');
+        }
     }
+    setIsLoading(false);
   };
 
   return (
@@ -78,7 +99,7 @@ const SignupPage: React.FC<SignupPageProps> = ({ onSignupSuccess, onSwitchToLogi
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full bg-slate-700 border border-slate-600 rounded-lg p-3 text-white placeholder-slate-400 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition"
-              placeholder="Create a password"
+              placeholder="Create a password (min. 6 characters)"
               autoComplete="new-password"
             />
           </div>

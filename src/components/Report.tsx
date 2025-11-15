@@ -48,7 +48,7 @@ const Report: React.FC<ReportProps> = ({ transactions, balance, onExport }) => {
       </div>
 
       <p className="text-xs text-slate-500 text-center mt-4">
-        Your data is stored securely in your browser's IndexedDB. Exporting creates a permanent CSV file on your device.
+        Your data is stored securely in the cloud. Exporting creates a permanent CSV file on your device.
       </p>
     </div>
   );
